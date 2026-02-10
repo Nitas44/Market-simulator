@@ -72,30 +72,11 @@ function init(){
 }
 
 init();
+startInterval();
 
-// --- PRICE UPDATE LOOP ---
-let priceInterval = setInterval(()=>{
-  if(paused) return;
-
-  price += (Math.random() - 0.5) * 0.4;
-  price = Math.max(1, price);
-
-  priceData.push(price);
-  priceData.shift();
-
-  buyPoints.push(null);
-  buyPoints.shift();
-
-  sellPoints.push(null);
-  sellPoints.shift();
-
-  updateUI();
-  chart.update();
-}, 3000);
-
-function restartInterval(){
-  clearInterval(priceInterval);
-  priceInterval = setInterval(()=>{
+function startInterval(){
+  clearInterval(window.priceInterval);
+  window.priceInterval = setInterval(()=>{
     if(paused) return;
 
     price += (Math.random() - 0.5) * 0.4;
@@ -114,7 +95,6 @@ function restartInterval(){
     chart.update();
   }, 3000);
 }
-
 
 function buy(){
   if(balance >= price){
