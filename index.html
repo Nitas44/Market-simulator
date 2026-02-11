@@ -1,156 +1,140 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Market Simulator</title>
-<link rel="icon" href="favicon.ico">
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<link rel="icon" href="favicon.ico" type="image/x-icon">
 <style>
-body{margin:0;background:#0b0b0b;color:white;font-family:Arial,sans-serif;text-align:center}
-header{padding:8px;font-size:20px;font-weight:bold}
-.price{font-size:34px}
-.percent{font-size:16px;margin-bottom:4px}
-.small{font-size:14px;opacity:.85}
-.legend{font-size:13px;margin-top:4px}
-.buttons button{margin:4px;padding:6px 14px;font-size:15px}
-.chart-box{height:70vh;padding:10px}
+  body { font-family: Arial; background: #f0f0f0; display:flex; flex-direction:column; align-items:center; padding:20px;}
+  canvas { background:#fff; border:1px solid #ccc; margin-bottom:10px;}
+  #info { font-size:14px; margin-bottom:10px;}
+  button { padding:5px 10px; margin:2px;}
 </style>
 </head>
 <body>
-<header>📈 Market Simulator</header>
-<div class="price" id="price">$10.00</div>
-<div class="percent" id="percent">▲ 0.00%</div>
-<div class="small">Balance: $<span id="balance">100.00</span> | Shares: <span id="shares">0</span></div>
-<div class="legend">🟢 Precio del mercado | 🔵 Buy | 🟡 Sell</div>
-<div class="buttons">
-<button onclick="buy()">Buy</button>
-<button onclick="sell()">Sell</button>
-<button onclick="pause()">Pause</button>
-<button onclick="resetGame()">New Game</button>
+
+<h2>Market Simulator</h2>
+<div id="info">
+  <span>💵 Dinero: $<span id="money">1000</span></span>
 </div>
-<div class="chart-box"><canvas id="chart"></canvas></div>
 
+<canvas id="chart" width="600" height="300"></canvas>
+
+<div>
+  <button id="buy">Buy</button>
+  <button id="sell">Sell</button>
+  <button id="reset">Reset</button>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-let price, startPrice, balance, shares, paused;
-const points = 40;
-let priceData, buyPoints, sellPoints, chart;
+let money = 1000;
+let shares = 0;
+let stockPrice = 10;
+let labels = [];
+let data = [];
+let buyPoints = [];
+let sellPoints = [];
+const ctx = document.getElementById('chart').getContext('2d');
 
-function init(){
-  price = 10;
-  startPrice = 10;
-  balance = 100;
-  shares = 0;
-  paused = false;
-
-  priceData = Array(points).fill(price);
-  buyPoints = Array(points).fill(null);
-  sellPoints = Array(points).fill(null);
-
-  if(chart) chart.destroy();
-
-  chart = new Chart(document.getElementById('chart'),{
-    type:'line',
-    data:{
-      labels:Array(points).fill(''),
-      datasets:[
-        {data:priceData,borderColor:'#00ff6a',borderWidth:3,pointRadius:0,tension:.3},
-        {data:buyPoints,type:'scatter',pointBackgroundColor:'#004cff',pointRadius:6},
-        {data:sellPoints,type:'scatter',pointBackgroundColor:'#ffcc00',pointRadius:6}
-      ]
+const chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+        labels: labels,
+        datasets: [{
+            label: 'Stock Price',
+            data: data,
+            borderColor: 'green',
+            borderWidth: 2,
+            pointRadius: 0,
+            fill: false
+        },{
+            label: 'Buy Points',
+            data: buyPoints,
+            borderColor: 'blue',
+            backgroundColor: 'blue',
+            type: 'scatter',
+            showLine: false,
+            pointRadius: 5
+        },{
+            label: 'Sell Points',
+            data: sellPoints,
+            borderColor: 'orange',
+            backgroundColor: 'orange',
+            type: 'scatter',
+            showLine: false,
+            pointRadius: 5
+        }]
     },
-    options:{
-      animation:false,
-      responsive:true,
-      maintainAspectRatio:false,
-      plugins:{legend:{display:false}},
-      scales:{
-        x:{display:false},
-        y:{ticks:{color:'white',callback:v=>'$'+v.toFixed(2)}}
-      }
+    options: {
+        animation:false,
+        responsive:false,
+        scales: {
+            y: { beginAtZero:false },
+        }
     }
-  });
-  updateUI();
-}
+});
 
-init();
-startInterval();
+// Función para actualizar el chart
+function updateChart() {
+    const step = 0.5; // Paso grande en dólares
+    const direction = Math.random() < 0.5 ? -1 : 1; // Sube o baja
+    stockPrice = Math.max(1, stockPrice + step * direction);
 
-function startInterval(){
-  clearInterval(window.priceInterval);
-  window.priceInterval = setInterval(()=>{
-    if(paused) return;
+    labels.push('');
+    data.push(stockPrice);
 
-    price += (Math.random() - 0.5) * 0.4;
-    price = Math.max(1, price);
+    if(labels.length > 100) { 
+        labels.shift(); 
+        data.shift(); 
+        buyPoints.shift(); 
+        sellPoints.shift(); 
+    }
 
-    priceData.push(price);
-    priceData.shift();
-
-    buyPoints.push(null);
-    buyPoints.shift();
-
-    sellPoints.push(null);
-    sellPoints.shift();
-
-    updateUI();
     chart.update();
-  }, 2300);
 }
 
-function buy(){
-  if(balance >= price){
-    balance -= price;
-    shares++;
-    buyPoints[buyPoints.length - 1] = price;
-    updateUI();
-  }
+// Comprar
+function buy() {
+    if(money >= stockPrice) {
+        shares++;
+        money -= stockPrice;
+        buyPoints.push({x: labels.length-1, y: stockPrice});
+        document.getElementById('money').innerText = money.toFixed(2);
+    }
 }
 
-function sell(){
-  if(shares > 0){
-    balance += price;
-    shares--;
-    sellPoints[sellPoints.length - 1] = price;
-    updateUI();
-  }
+// Vender
+function sell() {
+    if(shares > 0) {
+        shares--;
+        money += stockPrice;
+        sellPoints.push({x: labels.length-1, y: stockPrice});
+        document.getElementById('money').innerText = money.toFixed(2);
+    }
 }
 
-function pause(){
-  paused = !paused;
+// Reset
+function resetGame() {
+    money = 1000;
+    shares = 0;
+    stockPrice = 10;
+    labels.length = 0;
+    data.length = 0;
+    buyPoints.length = 0;
+    sellPoints.length = 0;
+    document.getElementById('money').innerText = money.toFixed(2);
+    chart.update();
 }
 
-function resetGame(){
-  init();
-}
+document.getElementById('buy').addEventListener('click', buy);
+document.getElementById('sell').addEventListener('click', sell);
+document.getElementById('reset').addEventListener('click', resetGame);
 
-function getTotalMoney(){
-  // 👉 SI NO TIENES ACCIONES, TU DINERO NO CAMBIA
-  if(shares === 0) return balance;
-  return balance + shares * price;
-}
-
-function updateUI(){
-  document.getElementById('price').textContent = '$' + price.toFixed(2);
-
-  // 👉 SI NO HAY ACCIONES, EL % NO CAMBIA
-  let equity;
-  let pct;
-
-  if(shares === 0){
-    equity = balance;
-    pct = 0;
-  } else {
-    equity = balance + shares * price;
-    pct = ((equity - 100) / 100) * 100;
-  }
-
-  const pctEl = document.getElementById('percent');
-  pctEl.textContent = (pct >= 0 ? '▲ ' : '▼ ') + pct.toFixed(2) + '%';
-  pctEl.style.color = pct >= 0 ? '#00ff6a' : '#ff4d4d';
-
-  document.getElementById('balance').textContent = balance.toFixed(2);
-  document.getElementById('shares').textContent = shares;
-}
+// Cambiar cada 1.7 segundos
+setInterval(updateChart, 2300);
 </script>
+
 </body>
 </html>
