@@ -31,15 +31,12 @@ header{padding:8px;font-size:20px;font-weight:bold}
 <div class="chart-box"><canvas id="chart"></canvas></div>
 
 <script>
-let price, startPrice, balance, shares, paused;
+let price, balance, shares, paused;
 const points = 40;
 let priceData, buyPoints, sellPoints, chart;
-let step = 0.5;        // Paso fijo de 0.50 dólares
-let direction = 1;     // 1 = subir, -1 = bajar
 
 function init(){
   price = 10;
-  startPrice = 10;
   balance = 100;
   shares = 0;
   paused = false;
@@ -82,13 +79,8 @@ function startInterval(){
   window.priceInterval = setInterval(()=>{
     if(paused) return;
 
-    // 👉 Nuevo comportamiento: subir o bajar 0.5 dólares cada vez
-    price += step * direction;
-
-    // Cambiar dirección aleatoriamente de vez en cuando
-    if(Math.random() < 0.3) direction *= -1;
-
-    price = Math.max(1, price); // precio mínimo 1
+    // 🔥 SIEMPRE sube 0.50 dólares
+    price += 0.50;
 
     priceData.push(price);
     priceData.shift();
@@ -101,7 +93,7 @@ function startInterval(){
 
     updateUI();
     chart.update();
-  }, 2300); // tiempo entre movimientos 2.3s
+  }, 2300); // cada 2.3 segundos
 }
 
 function buy(){
@@ -128,11 +120,6 @@ function pause(){
 
 function resetGame(){
   init();
-}
-
-function getTotalMoney(){
-  if(shares === 0) return balance;
-  return balance + shares * price;
 }
 
 function updateUI(){
