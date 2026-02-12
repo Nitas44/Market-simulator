@@ -1,160 +1,217 @@
 <!DOCTYPE html>
-<html lang="es">
+<html>
 <head>
-<meta charset="UTF-8">
-<title>Market Simulator PRO</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<title>Market Simulator</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
-body{margin:0;background:#0b0b0b;color:white;font-family:Arial;text-align:center}
-header{padding:8px;font-size:22px;font-weight:bold}
-.price{font-size:34px}
-.percent{font-size:16px;margin-bottom:6px}
-.small{font-size:14px;opacity:.85}
-button, select{margin:4px;padding:6px 14px;font-size:15px}
-.chart-box{height:65vh;padding:10px}
+body{
+    background:black;
+    color:white;
+    text-align:center;
+    font-family:Arial;
+    margin:0;
+}
+button{
+    margin:5px;
+    padding:6px 12px;
+    cursor:pointer;
+}
+.stockBox{
+    width:700px;
+    margin:15px auto;
+}
+canvas{
+    background:#111;
+}
+#eventMessage{
+    font-size:20px;
+    font-weight:bold;
+    margin:10px;
+    height:25px;
+}
 </style>
 </head>
 <body>
 
-<header>📈 Multi Stock Simulator</header>
+<h1>📈 Market Simulator</h1>
 
-<select id="stockSelector" onchange="changeStock()">
-  <option value="Tech">Tech Corp</option>
-  <option value="Energy">Energy Inc</option>
-  <option value="Crypto">Crypto Coin</option>
-</select>
+<h2>Balance: $<span id="balance">50.00</span></h2>
+<div id="eventMessage"></div>
 
-<div class="price" id="price">$10.00</div>
-<div class="percent" id="percent">▲ 0.00%</div>
-<div class="small">
-Balance: $<span id="balance">100.00</span> |
-Shares: <span id="shares">0</span>
-</div>
+<button onclick="changeStock('tech')">Tech</button>
+<button onclick="changeStock('energy')">Energy</button>
+<button onclick="changeStock('crypto')">Crypto</button>
+<button onclick="showAll()">Show All</button>
+<button onclick="togglePause()">Pause</button>
+<button onclick="newGame()">New Game</button>
 
-<div>
-<button onclick="buy()">Buy</button>
-<button onclick="sell()">Sell</button>
-<button onclick="pause()">Pause</button>
-<button onclick="resetGame()">New Game</button>
-</div>
-
-<div class="chart-box">
-<canvas id="chart"></canvas>
-</div>
+<div id="content"></div>
 
 <script>
-const points = 40;
-let balance = 100;
-let shares = 0;
+
+let balance;
+let stocks;
+let currentStock = "tech";
+let maxPoints = 30;
+let interval;
 let paused = false;
-let currentStock = "Tech";
 
-let stocks = {
-  Tech: { price: 10, data: Array(points).fill(10) },
-  Energy: { price: 15, data: Array(points).fill(15) },
-  Crypto: { price: 5, data: Array(points).fill(5) }
-};
-
-let chart;
-
-function initChart(){
-  chart = new Chart(document.getElementById('chart'),{
-    type:'line',
-    data:{
-      labels:Array(points).fill(''),
-      datasets:[{
-        data:stocks[currentStock].data,
-        borderColor:'#00ff6a',
-        borderWidth:3,
-        pointRadius:0,
-        tension:.3
-      }]
-    },
-    options:{
-      animation:false,
-      responsive:true,
-      maintainAspectRatio:false,
-      plugins:{legend:{display:false}},
-      scales:{
-        x:{display:false},
-        y:{
-          ticks:{
-            color:'white',
-            stepSize:0.5,
-            callback:v=>'$'+v.toFixed(2)
-          }
-        }
-      }
-    }
-  });
+function startGame(){
+    balance = 50;   // 👈 CAMBIADO A 50
+    stocks = {
+        tech: { price:10, shares:0, history:[10], buys:[], sells:[], color:"white" },
+        energy: { price:10, shares:0, history:[10], buys:[], sells:[], color:"#66ccff" },
+        crypto: { price:10, shares:0, history:[10], buys:[], sells:[], color:"purple" }
+    };
+    document.getElementById("balance").innerText = balance.toFixed(2);
+    document.getElementById("eventMessage").innerText = "";
+    changeStock("tech");
+    interval = setInterval(updatePrices,2300);
 }
 
-function changeStock(){
-  currentStock = document.getElementById("stockSelector").value;
-  chart.data.datasets[0].data = stocks[currentStock].data;
-  updateUI();
-  chart.update();
-}
-
-function startMarket(){
-  setInterval(()=>{
+function updatePrices(){
     if(paused) return;
 
     for(let key in stocks){
-      let direction = Math.random() < 0.5 ? -1 : 1;
-      stocks[key].price += 0.50 * direction;
 
-      if(stocks[key].price < 1) stocks[key].price = 1;
-      stocks[key].price = parseFloat(stocks[key].price.toFixed(2));
+        let change = Math.random() > 0.5 ? 0.50 : -0.50;
 
-      stocks[key].data.push(stocks[key].price);
-      stocks[key].data.shift();
+        stocks[key].price += change;
+        if(stocks[key].price < 1) stocks[key].price = 1;
+
+        stocks[key].history.push(stocks[key].price);
+
+        if(stocks[key].history.length > maxPoints){
+            stocks[key].history.shift();
+            stocks[key].buys = stocks[key].buys.map(i=>i-1).filter(i=>i>=0);
+            stocks[key].sells = stocks[key].sells.map(i=>i-1).filter(i=>i>=0);
+        }
     }
 
-    updateUI();
-    chart.update();
-
-  }, 2300);
+    render();
 }
 
-function buy(){
-  let price = stocks[currentStock].price;
-  if(balance >= price){
-    balance -= price;
-    shares++;
-    updateUI();
-  }
+function render(){
+
+    document.getElementById("balance").innerText = balance.toFixed(2);
+
+    if(currentStock === "all"){
+        let html = "";
+        for(let key in stocks){
+            html += `
+            <div class="stockBox">
+                <h3>${key.toUpperCase()} - $${stocks[key].price.toFixed(2)}</h3>
+                <p>Shares: ${stocks[key].shares}</p>
+                <p>Value: $${(stocks[key].shares * stocks[key].price).toFixed(2)}</p>
+                <button onclick="buy('${key}')">Buy</button>
+                <button onclick="sell('${key}')">Sell</button>
+                <canvas id="chart-${key}" width="700" height="200"></canvas>
+            </div>
+            `;
+        }
+        document.getElementById("content").innerHTML = html;
+
+        for(let key in stocks){
+            createChart(key);
+        }
+
+    } else {
+        let s = stocks[currentStock];
+        document.getElementById("content").innerHTML = `
+        <div class="stockBox">
+            <h3>${currentStock.toUpperCase()} - $${s.price.toFixed(2)}</h3>
+            <p>Shares: ${s.shares}</p>
+            <p>Value: $${(s.shares * s.price).toFixed(2)}</p>
+            <button onclick="buy('${currentStock}')">Buy</button>
+            <button onclick="sell('${currentStock}')">Sell</button>
+            <canvas id="chart-${currentStock}" width="700" height="300"></canvas>
+        </div>
+        `;
+        createChart(currentStock);
+    }
 }
 
-function sell(){
-  let price = stocks[currentStock].price;
-  if(shares > 0){
-    balance += price;
-    shares--;
-    updateUI();
-  }
+function createChart(key){
+    let ctx = document.getElementById(`chart-${key}`).getContext("2d");
+
+    new Chart(ctx,{
+        type:"line",
+        data:{
+            labels:stocks[key].history.map(()=> ""),
+            datasets:[
+                {
+                    data:stocks[key].history,
+                    borderColor:stocks[key].color,
+                    borderWidth:2,
+                    pointRadius:0,
+                    tension:0.4
+                },
+                {
+                    data:stocks[key].history.map((v,i)=>
+                        stocks[key].buys.includes(i)? v : null),
+                    pointBackgroundColor:"darkblue",
+                    pointRadius:6,
+                    showLine:false
+                },
+                {
+                    data:stocks[key].history.map((v,i)=>
+                        stocks[key].sells.includes(i)? v : null),
+                    pointBackgroundColor:"yellow",
+                    pointRadius:6,
+                    showLine:false
+                }
+            ]
+        },
+        options:{
+            animation:false,
+            plugins:{legend:{display:false}},
+            scales:{
+                x:{display:false},
+                y:{ticks:{color:"white"}}
+            }
+        }
+    });
 }
 
-function pause(){
-  paused = !paused;
+function changeStock(name){
+    currentStock = name;
+    render();
 }
 
-function resetGame(){
-  balance = 100;
-  shares = 0;
-  updateUI();
+function showAll(){
+    currentStock = "all";
+    render();
 }
 
-function updateUI(){
-  let price = stocks[currentStock].price;
-  document.getElementById('price').textContent = '$'+price.toFixed(2);
-  document.getElementById('balance').textContent = balance.toFixed(2);
-  document.getElementById('shares').textContent = shares;
+function buy(key){
+    if(balance >= stocks[key].price){
+        stocks[key].shares++;
+        balance -= stocks[key].price;
+        stocks[key].buys.push(stocks[key].history.length-1);
+        render();
+    }
 }
 
-initChart();
-startMarket();
-updateUI();
+function sell(key){
+    if(stocks[key].shares > 0){
+        stocks[key].shares--;
+        balance += stocks[key].price;
+        stocks[key].sells.push(stocks[key].history.length-1);
+        render();
+    }
+}
+
+function togglePause(){
+    paused = !paused;
+}
+
+function newGame(){
+    clearInterval(interval);
+    startGame();
+}
+
+startGame();
+
 </script>
 
 </body>
