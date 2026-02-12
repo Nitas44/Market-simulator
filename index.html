@@ -2,61 +2,73 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Market Simulator</title>
-<link rel="icon" href="favicon.ico" type="image/x-icon">
+<title>Market Simulator PRO</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
-body{margin:0;background:#0b0b0b;color:white;font-family:Arial,sans-serif;text-align:center}
-header{padding:8px;font-size:20px;font-weight:bold}
+body{margin:0;background:#0b0b0b;color:white;font-family:Arial;text-align:center}
+header{padding:8px;font-size:22px;font-weight:bold}
 .price{font-size:34px}
-.percent{font-size:16px;margin-bottom:4px}
+.percent{font-size:16px;margin-bottom:6px}
 .small{font-size:14px;opacity:.85}
-.legend{font-size:13px;margin-top:4px}
-.buttons button{margin:4px;padding:6px 14px;font-size:15px}
-.chart-box{height:70vh;padding:10px}
+button, select{margin:4px;padding:6px 14px;font-size:15px}
+.chart-box{height:65vh;padding:10px}
 </style>
 </head>
 <body>
-<header>📈 Market Simulator</header>
+
+<header>📈 Multi Stock Simulator</header>
+
+<select id="stockSelector" onchange="changeStock()">
+  <option value="Tech">Tech Corp</option>
+  <option value="Energy">Energy Inc</option>
+  <option value="Crypto">Crypto Coin</option>
+</select>
+
 <div class="price" id="price">$10.00</div>
 <div class="percent" id="percent">▲ 0.00%</div>
-<div class="small">Balance: $<span id="balance">100.00</span> | Shares: <span id="shares">0</span></div>
-<div class="legend">🟢 Precio del mercado | 🔵 Buy | 🟡 Sell</div>
-<div class="buttons">
+<div class="small">
+Balance: $<span id="balance">100.00</span> |
+Shares: <span id="shares">0</span>
+</div>
+
+<div>
 <button onclick="buy()">Buy</button>
 <button onclick="sell()">Sell</button>
 <button onclick="pause()">Pause</button>
 <button onclick="resetGame()">New Game</button>
 </div>
-<div class="chart-box"><canvas id="chart"></canvas></div>
+
+<div class="chart-box">
+<canvas id="chart"></canvas>
+</div>
 
 <script>
-let price, startPrice, balance, shares, paused;
 const points = 40;
-let priceData, buyPoints, sellPoints, chart;
+let balance = 100;
+let shares = 0;
+let paused = false;
+let currentStock = "Tech";
 
-function init(){
-  price = 10;
-  startPrice = 10;
-  balance = 100;
-  shares = 0;
-  paused = false;
+let stocks = {
+  Tech: { price: 10, data: Array(points).fill(10) },
+  Energy: { price: 15, data: Array(points).fill(15) },
+  Crypto: { price: 5, data: Array(points).fill(5) }
+};
 
-  priceData = Array(points).fill(price);
-  buyPoints = Array(points).fill(null);
-  sellPoints = Array(points).fill(null);
+let chart;
 
-  if(chart) chart.destroy();
-
+function initChart(){
   chart = new Chart(document.getElementById('chart'),{
     type:'line',
     data:{
       labels:Array(points).fill(''),
-      datasets:[
-        {data:priceData,borderColor:'#00ff6a',borderWidth:3,pointRadius:0,tension:.3},
-        {data:buyPoints,type:'scatter',pointBackgroundColor:'#004cff',pointRadius:6},
-        {data:sellPoints,type:'scatter',pointBackgroundColor:'#ffcc00',pointRadius:6}
-      ]
+      datasets:[{
+        data:stocks[currentStock].data,
+        borderColor:'#00ff6a',
+        borderWidth:3,
+        pointRadius:0,
+        tension:.3
+      }]
     },
     options:{
       animation:false,
@@ -75,54 +87,50 @@ function init(){
       }
     }
   });
-  updateUI();
 }
 
-init();
-startInterval();
+function changeStock(){
+  currentStock = document.getElementById("stockSelector").value;
+  chart.data.datasets[0].data = stocks[currentStock].data;
+  updateUI();
+  chart.update();
+}
 
-function startInterval(){
-  clearInterval(window.priceInterval);
-  window.priceInterval = setInterval(()=>{
+function startMarket(){
+  setInterval(()=>{
     if(paused) return;
 
-    // 🔥 Movimiento en pasos de 0.50 (sube o baja)
-    const direction = Math.random() < 0.5 ? -1 : 1;
-    price += 0.50 * direction;
+    for(let key in stocks){
+      let direction = Math.random() < 0.5 ? -1 : 1;
+      stocks[key].price += 0.50 * direction;
 
-    if(price < 1) price = 1;
+      if(stocks[key].price < 1) stocks[key].price = 1;
+      stocks[key].price = parseFloat(stocks[key].price.toFixed(2));
 
-    // Evita errores decimales raros
-    price = parseFloat(price.toFixed(2));
-
-    priceData.push(price);
-    priceData.shift();
-
-    buyPoints.push(null);
-    buyPoints.shift();
-
-    sellPoints.push(null);
-    sellPoints.shift();
+      stocks[key].data.push(stocks[key].price);
+      stocks[key].data.shift();
+    }
 
     updateUI();
     chart.update();
+
   }, 2300);
 }
 
 function buy(){
+  let price = stocks[currentStock].price;
   if(balance >= price){
     balance -= price;
     shares++;
-    buyPoints[buyPoints.length - 1] = price;
     updateUI();
   }
 }
 
 function sell(){
+  let price = stocks[currentStock].price;
   if(shares > 0){
     balance += price;
     shares--;
-    sellPoints[sellPoints.length - 1] = price;
     updateUI();
   }
 }
@@ -132,30 +140,22 @@ function pause(){
 }
 
 function resetGame(){
-  init();
+  balance = 100;
+  shares = 0;
+  updateUI();
 }
 
 function updateUI(){
-  document.getElementById('price').textContent = '$' + price.toFixed(2);
-
-  let equity;
-  let pct;
-
-  if(shares === 0){
-    equity = balance;
-    pct = 0;
-  } else {
-    equity = balance + shares * price;
-    pct = ((equity - 100) / 100) * 100;
-  }
-
-  const pctEl = document.getElementById('percent');
-  pctEl.textContent = (pct >= 0 ? '▲ ' : '▼ ') + pct.toFixed(2) + '%';
-  pctEl.style.color = pct >= 0 ? '#00ff6a' : '#ff4d4d';
-
+  let price = stocks[currentStock].price;
+  document.getElementById('price').textContent = '$'+price.toFixed(2);
   document.getElementById('balance').textContent = balance.toFixed(2);
   document.getElementById('shares').textContent = shares;
 }
+
+initChart();
+startMarket();
+updateUI();
 </script>
+
 </body>
 </html>
