@@ -64,7 +64,13 @@ function init(){
       plugins:{legend:{display:false}},
       scales:{
         x:{display:false},
-        y:{ticks:{color:'white',callback:v=>'$'+v.toFixed(2)}}
+        y:{
+          ticks:{
+            color:'white',
+            stepSize: 0.5,   // 🔥 FORCE 0.50 steps
+            callback:v=>'$'+v.toFixed(2)
+          }
+        }
       }
     }
   });
@@ -79,7 +85,7 @@ function startInterval(){
   window.priceInterval = setInterval(()=>{
     if(paused) return;
 
-    // 🔥 SIEMPRE sube 0.50 dólares
+    // Always increase 0.50
     price += 0.50;
 
     priceData.push(price);
@@ -93,7 +99,7 @@ function startInterval(){
 
     updateUI();
     chart.update();
-  }, 2300); // cada 2.3 segundos
+  }, 2300);
 }
 
 function buy(){
